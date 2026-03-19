@@ -7,9 +7,11 @@
  */
 
 export * from "./createCriterionInput";
+export * from "./createDepartmentInput";
 export * from "./createFacultyInput";
 export * from "./criterion";
 export * from "./criterionScore";
+export * from "./department";
 export * from "./evaluation";
 export * from "./evaluationScore";
 export * from "./faculty";

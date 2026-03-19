@@ -15,6 +15,55 @@ export const HealthCheckResponse = zod.object({
 });
 
 /**
+ * @summary List all school departments
+ */
+export const ListDepartmentsResponseItem = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  code: zod.string(),
+  description: zod.string().optional(),
+  createdAt: zod.date(),
+});
+export const ListDepartmentsResponse = zod.array(ListDepartmentsResponseItem);
+
+/**
+ * @summary Create a school department
+ */
+export const CreateDepartmentBody = zod.object({
+  name: zod.string(),
+  code: zod.string(),
+  description: zod.string().optional(),
+});
+
+/**
+ * @summary Update a department
+ */
+export const UpdateDepartmentParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateDepartmentBody = zod.object({
+  name: zod.string(),
+  code: zod.string(),
+  description: zod.string().optional(),
+});
+
+export const UpdateDepartmentResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  code: zod.string(),
+  description: zod.string().optional(),
+  createdAt: zod.date(),
+});
+
+/**
+ * @summary Delete a department
+ */
+export const DeleteDepartmentParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
  * @summary List all faculty members
  */
 export const ListFacultyResponseItem = zod.object({

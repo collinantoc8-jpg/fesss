@@ -5,6 +5,20 @@
  * Faculty Evaluation System API
  * OpenAPI spec version: 0.1.0
  */
+export interface Department {
+  id: number;
+  name: string;
+  code: string;
+  description?: string;
+  createdAt: string;
+}
+
+export interface CreateDepartmentInput {
+  name: string;
+  code: string;
+  description?: string;
+}
+
 export interface HealthStatus {
   status: string;
 }
