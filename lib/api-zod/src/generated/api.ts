@@ -200,8 +200,27 @@ export const SubmitEvaluationBody = zod.object({
 });
 
 /**
+ * @summary Get distinct academic years that have evaluation data
+ */
+export const ListAcademicYearsResponseItem = zod.string();
+export const ListAcademicYearsResponse = zod.array(
+  ListAcademicYearsResponseItem,
+);
+
+/**
  * @summary Get aggregated results per faculty member
  */
+export const ListResultsQueryParams = zod.object({
+  academicYear: zod.coerce
+    .string()
+    .optional()
+    .describe("Filter results by academic year (e.g. 2025-2026)"),
+  semester: zod.coerce
+    .string()
+    .optional()
+    .describe("Filter results by semester (e.g. 1st Semester)"),
+});
+
 export const ListResultsResponseItem = zod.object({
   facultyId: zod.number(),
   facultyName: zod.string(),

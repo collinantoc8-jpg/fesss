@@ -123,3 +123,14 @@ export interface FacultyResultDetail {
 export type ListEvaluationsParams = {
   facultyId?: number;
 };
+
+export type ListResultsParams = {
+  /**
+   * Filter results by academic year (e.g. 2025-2026)
+   */
+  academicYear?: string;
+  /**
+   * Filter results by semester (e.g. 1st Semester)
+   */
+  semester?: string;
+};

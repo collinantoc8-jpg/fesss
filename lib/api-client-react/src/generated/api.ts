@@ -28,6 +28,7 @@ import type {
   FacultyResultDetail,
   HealthStatus,
   ListEvaluationsParams,
+  ListResultsParams,
   SubmitEvaluationInput,
 } from "./api.schemas";
 
@@ -1292,31 +1293,31 @@ export const useSubmitEvaluation = <
 };
 
 /**
- * @summary Get aggregated results per faculty member
+ * @summary Get distinct academic years that have evaluation data
  */
-export const getListResultsUrl = () => {
-  return `/api/results`;
+export const getListAcademicYearsUrl = () => {
+  return `/api/academic-years`;
 };
 
-export const listResults = async (
+export const listAcademicYears = async (
   options?: RequestInit,
-): Promise<FacultyResult[]> => {
-  return customFetch<FacultyResult[]>(getListResultsUrl(), {
+): Promise<string[]> => {
+  return customFetch<string[]>(getListAcademicYearsUrl(), {
     ...options,
     method: "GET",
   });
 };
 
-export const getListResultsQueryKey = () => {
-  return [`/api/results`] as const;
+export const getListAcademicYearsQueryKey = () => {
+  return [`/api/academic-years`] as const;
 };
 
-export const getListResultsQueryOptions = <
-  TData = Awaited<ReturnType<typeof listResults>>,
+export const getListAcademicYearsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listAcademicYears>>,
   TError = ErrorType<unknown>,
 >(options?: {
   query?: UseQueryOptions<
-    Awaited<ReturnType<typeof listResults>>,
+    Awaited<ReturnType<typeof listAcademicYears>>,
     TError,
     TData
   >;
@@ -1324,11 +1325,102 @@ export const getListResultsQueryOptions = <
 }) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getListResultsQueryKey();
+  const queryKey = queryOptions?.queryKey ?? getListAcademicYearsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listAcademicYears>>
+  > = ({ signal }) => listAcademicYears({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listAcademicYears>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListAcademicYearsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listAcademicYears>>
+>;
+export type ListAcademicYearsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get distinct academic years that have evaluation data
+ */
+
+export function useListAcademicYears<
+  TData = Awaited<ReturnType<typeof listAcademicYears>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listAcademicYears>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListAcademicYearsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get aggregated results per faculty member
+ */
+export const getListResultsUrl = (params?: ListResultsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/results?${stringifiedParams}`
+    : `/api/results`;
+};
+
+export const listResults = async (
+  params?: ListResultsParams,
+  options?: RequestInit,
+): Promise<FacultyResult[]> => {
+  return customFetch<FacultyResult[]>(getListResultsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListResultsQueryKey = (params?: ListResultsParams) => {
+  return [`/api/results`, ...(params ? [params] : [])] as const;
+};
+
+export const getListResultsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listResults>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListResultsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listResults>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListResultsQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listResults>>> = ({
     signal,
-  }) => listResults({ signal, ...requestOptions });
+  }) => listResults(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listResults>>,
@@ -1349,15 +1441,18 @@ export type ListResultsQueryError = ErrorType<unknown>;
 export function useListResults<
   TData = Awaited<ReturnType<typeof listResults>>,
   TError = ErrorType<unknown>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof listResults>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getListResultsQueryOptions(options);
+>(
+  params?: ListResultsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listResults>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListResultsQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

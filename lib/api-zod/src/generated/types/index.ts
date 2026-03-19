@@ -19,5 +19,6 @@ export * from "./facultyResult";
 export * from "./facultyResultDetail";
 export * from "./healthStatus";
 export * from "./listEvaluationsParams";
+export * from "./listResultsParams";
 export * from "./submitEvaluationInput";
 export * from "./submitEvaluationInputEvaluatorRole";

@@ -19,6 +19,8 @@ tags:
     description: Evaluation criteria management
   - name: results
     description: Evaluation results
+  - name: academic-years
+    description: Available academic years
 
 paths:
   /healthz:
@@ -277,11 +279,37 @@ paths:
               schema:
                 $ref: "#/components/schemas/Evaluation"
 
+  /academic-years:
+    get:
+      operationId: listAcademicYears
+      tags: [academic-years]
+      summary: Get distinct academic years that have evaluation data
+      responses:
+        "200":
+          description: List of academic years
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+
   /results:
     get:
       operationId: listResults
       tags: [results]
       summary: Get aggregated results per faculty member
+      parameters:
+        - name: academicYear
+          in: query
+          schema:
+            type: string
+          description: Filter results by academic year (e.g. 2025-2026)
+        - name: semester
+          in: query
+          schema:
+            type: string
+          description: Filter results by semester (e.g. 1st Semester)
       responses:
         "200":
           description: Results per faculty

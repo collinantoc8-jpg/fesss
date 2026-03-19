@@ -1,24 +1,35 @@
 import { Router, type IRouter } from "express";
 import { db, facultyTable, evaluationsTable, evaluationScoresTable, criteriaTable } from "@workspace/db";
-import { eq, avg, count, sql } from "drizzle-orm";
+import { eq, avg, count, sql, and } from "drizzle-orm";
 
 const router: IRouter = Router();
 
-router.get("/results", async (_req, res) => {
+router.get("/academic-years", async (_req, res) => {
+  const rows = await db
+    .selectDistinct({ academicYear: evaluationsTable.academicYear })
+    .from(evaluationsTable)
+    .orderBy(sql`${evaluationsTable.academicYear} DESC`);
+  res.json(rows.map(r => r.academicYear));
+});
+
+router.get("/results", async (req, res) => {
+  const academicYear = req.query.academicYear as string | undefined;
+  const semester = req.query.semester as string | undefined;
+
   const faculty = await db.select().from(facultyTable).orderBy(facultyTable.name);
+  const totalCriteria = await db.select({ total: count() }).from(criteriaTable);
+  const maxPossiblePerEval = (totalCriteria[0]?.total ?? 0) * 5;
 
   const results = await Promise.all(
     faculty.map(async (f) => {
-      const evals = await db
-        .select({
-          count: count(),
-          avgScore: avg(evaluationsTable.totalScore),
-        })
-        .from(evaluationsTable)
-        .where(eq(evaluationsTable.facultyId, f.id));
+      const conditions = [eq(evaluationsTable.facultyId, f.id)];
+      if (academicYear) conditions.push(eq(evaluationsTable.academicYear, academicYear));
+      if (semester) conditions.push(eq(evaluationsTable.semester, semester));
 
-      const totalCriteria = await db.select({ total: count() }).from(criteriaTable);
-      const maxPossiblePerEval = (totalCriteria[0]?.total ?? 0) * 5;
+      const evals = await db
+        .select({ count: count(), avgScore: avg(evaluationsTable.totalScore) })
+        .from(evaluationsTable)
+        .where(and(...conditions));
 
       const totalEvals = Number(evals[0]?.count ?? 0);
       const avgScore = Number(evals[0]?.avgScore ?? 0);
