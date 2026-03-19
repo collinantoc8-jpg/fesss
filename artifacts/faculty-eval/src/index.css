@@ -1,0 +1,136 @@
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap');
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: 'DM Sans', sans-serif;
+  --font-display: 'Crimson Pro', serif;
+
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+}
+
+:root {
+  /* Clean Professional Institutional Palette */
+  --background: 210 24% 98%; /* Light gray-blue */
+  --foreground: 212 64% 11%; /* Deep navy */
+  
+  --card: 0 0% 100%;
+  --card-foreground: 212 64% 11%;
+  
+  --popover: 0 0% 100%;
+  --popover-foreground: 212 64% 11%;
+  
+  --primary: 212 100% 24%; /* University Blue */
+  --primary-foreground: 210 40% 98%;
+  
+  --secondary: 214 32% 91%;
+  --secondary-foreground: 212 100% 24%;
+  
+  --muted: 214 32% 91%;
+  --muted-foreground: 215 16% 47%;
+  
+  --accent: 46 65% 52%; /* Institutional Gold */
+  --accent-foreground: 212 64% 11%;
+  
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 212 100% 24%;
+
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: 212 64% 11%;
+  --foreground: 210 40% 98%;
+  
+  --card: 212 48% 16%;
+  --card-foreground: 210 40% 98%;
+  
+  --popover: 212 48% 16%;
+  --popover-foreground: 210 40% 98%;
+  
+  --primary: 210 100% 60%;
+  --primary-foreground: 212 64% 11%;
+  
+  --secondary: 212 32% 24%;
+  --secondary-foreground: 210 40% 98%;
+  
+  --muted: 212 32% 24%;
+  --muted-foreground: 215 20% 65%;
+  
+  --accent: 46 65% 52%;
+  --accent-foreground: 212 64% 11%;
+  
+  --destructive: 0 62% 30%;
+  --destructive-foreground: 210 40% 98%;
+  
+  --border: 212 32% 24%;
+  --input: 212 32% 24%;
+  --ring: 210 100% 60%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    /* Custom scrollbar for webkit */
+    &::-webkit-scrollbar {
+      width: 8px;
+    }
+    &::-webkit-scrollbar-track {
+      @apply bg-transparent;
+    }
+    &::-webkit-scrollbar-thumb {
+      @apply bg-muted-foreground/30 rounded-full;
+    }
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    @apply tracking-tight font-semibold text-primary;
+  }
+}
+
+/* Custom interactive classes */
+.glass-panel {
+  @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-lg;
+}
+
+.hover-lift {
+  @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-xl;
+}

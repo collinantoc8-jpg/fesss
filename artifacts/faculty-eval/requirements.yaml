@@ -1,0 +1,16 @@
+packages:
+  "framer-motion": "For page transitions, list animations, and smooth UI interactions"
+  "recharts": "For rendering beautiful radar and bar charts on the results and detail pages"
+  "date-fns": "For formatting evaluation dates cleanly"
+
+images:
+  - path: "artifacts/faculty-eval/public/images/hero-bg.png"
+    description: "Abstract, elegant, professional university campus architecture with soft navy and gold geometric overlays"
+    aspect_ratio: "16:9"
+  - path: "artifacts/faculty-eval/public/images/logo.png"
+    description: "Minimalist modern university crest logo in solid navy blue on transparent background"
+    aspect_ratio: "1:1"
+
+notes:
+  - Wouter is used for routing. All links will use the href prop natively.
+  - The API client is generated in @workspace/api-client-react. We will use those hooks but wrap them to add TanStack query invalidation on mutation success.

@@ -1,22 +1,29 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Faculty Evaluation System API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: faculty
+    description: Faculty management
+  - name: evaluations
+    description: Evaluation management
+  - name: criteria
+    description: Evaluation criteria management
+  - name: results
+    description: Evaluation results
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +31,214 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /faculty:
+    get:
+      operationId: listFaculty
+      tags: [faculty]
+      summary: List all faculty members
+      responses:
+        "200":
+          description: List of faculty
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Faculty"
+    post:
+      operationId: createFaculty
+      tags: [faculty]
+      summary: Create a faculty member
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFacultyInput"
+      responses:
+        "201":
+          description: Faculty created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Faculty"
+
+  /faculty/{id}:
+    get:
+      operationId: getFaculty
+      tags: [faculty]
+      summary: Get faculty member by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Faculty member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Faculty"
+        "404":
+          description: Not found
+    put:
+      operationId: updateFaculty
+      tags: [faculty]
+      summary: Update a faculty member
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFacultyInput"
+      responses:
+        "200":
+          description: Updated faculty
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Faculty"
+    delete:
+      operationId: deleteFaculty
+      tags: [faculty]
+      summary: Delete a faculty member
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /criteria:
+    get:
+      operationId: listCriteria
+      tags: [criteria]
+      summary: List all evaluation criteria
+      responses:
+        "200":
+          description: List of criteria
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Criterion"
+    post:
+      operationId: createCriterion
+      tags: [criteria]
+      summary: Create an evaluation criterion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCriterionInput"
+      responses:
+        "201":
+          description: Criterion created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Criterion"
+
+  /criteria/{id}:
+    delete:
+      operationId: deleteCriterion
+      tags: [criteria]
+      summary: Delete a criterion
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /evaluations:
+    get:
+      operationId: listEvaluations
+      tags: [evaluations]
+      summary: List evaluations
+      parameters:
+        - name: facultyId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of evaluations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Evaluation"
+    post:
+      operationId: submitEvaluation
+      tags: [evaluations]
+      summary: Submit a faculty evaluation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitEvaluationInput"
+      responses:
+        "201":
+          description: Evaluation submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Evaluation"
+
+  /results:
+    get:
+      operationId: listResults
+      tags: [results]
+      summary: Get aggregated results per faculty member
+      responses:
+        "200":
+          description: Results per faculty
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FacultyResult"
+
+  /results/{facultyId}:
+    get:
+      operationId: getFacultyResult
+      tags: [results]
+      summary: Get detailed result for a faculty member
+      parameters:
+        - name: facultyId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Detailed faculty result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FacultyResultDetail"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +249,233 @@ components:
       required:
         - status
 
+    Faculty:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        department:
+          type: string
+        position:
+          type: string
+        email:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - department
+        - position
+        - email
+        - createdAt
+
+    CreateFacultyInput:
+      type: object
+      properties:
+        name:
+          type: string
+        department:
+          type: string
+        position:
+          type: string
+        email:
+          type: string
+      required:
+        - name
+        - department
+        - position
+        - email
+
+    Criterion:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        maxScore:
+          type: integer
+        category:
+          type: string
+      required:
+        - id
+        - name
+        - description
+        - maxScore
+        - category
+
+    CreateCriterionInput:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        maxScore:
+          type: integer
+        category:
+          type: string
+      required:
+        - name
+        - description
+        - maxScore
+        - category
+
+    EvaluationScore:
+      type: object
+      properties:
+        criterionId:
+          type: integer
+        score:
+          type: integer
+      required:
+        - criterionId
+        - score
+
+    SubmitEvaluationInput:
+      type: object
+      properties:
+        facultyId:
+          type: integer
+        evaluatorName:
+          type: string
+        evaluatorRole:
+          type: string
+          enum: [student, peer, admin]
+        semester:
+          type: string
+        academicYear:
+          type: string
+        comments:
+          type: string
+        scores:
+          type: array
+          items:
+            $ref: "#/components/schemas/EvaluationScore"
+      required:
+        - facultyId
+        - evaluatorName
+        - evaluatorRole
+        - semester
+        - academicYear
+        - scores
+
+    Evaluation:
+      type: object
+      properties:
+        id:
+          type: integer
+        facultyId:
+          type: integer
+        evaluatorName:
+          type: string
+        evaluatorRole:
+          type: string
+        semester:
+          type: string
+        academicYear:
+          type: string
+        comments:
+          type: string
+        totalScore:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - facultyId
+        - evaluatorName
+        - evaluatorRole
+        - semester
+        - academicYear
+        - totalScore
+        - createdAt
+
+    CriterionScore:
+      type: object
+      properties:
+        criterionId:
+          type: integer
+        criterionName:
+          type: string
+        category:
+          type: string
+        averageScore:
+          type: number
+        maxScore:
+          type: integer
+      required:
+        - criterionId
+        - criterionName
+        - category
+        - averageScore
+        - maxScore
+
+    FacultyResult:
+      type: object
+      properties:
+        facultyId:
+          type: integer
+        facultyName:
+          type: string
+        department:
+          type: string
+        position:
+          type: string
+        averageScore:
+          type: number
+        totalEvaluations:
+          type: integer
+        overallPercentage:
+          type: number
+      required:
+        - facultyId
+        - facultyName
+        - department
+        - position
+        - averageScore
+        - totalEvaluations
+        - overallPercentage
+
+    FacultyResultDetail:
+      type: object
+      properties:
+        facultyId:
+          type: integer
+        facultyName:
+          type: string
+        department:
+          type: string
+        position:
+          type: string
+        averageScore:
+          type: number
+        totalEvaluations:
+          type: integer
+        overallPercentage:
+          type: number
+        criteriaScores:
+          type: array
+          items:
+            $ref: "#/components/schemas/CriterionScore"
+        recentComments:
+          type: array
+          items:
+            type: string
+      required:
+        - facultyId
+        - facultyName
+        - department
+        - position
+        - averageScore
+        - totalEvaluations
+        - overallPercentage
+        - criteriaScores
+        - recentComments

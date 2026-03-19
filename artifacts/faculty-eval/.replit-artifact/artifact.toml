@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Faculty Evaluation System"
+version = "1.0.0"
+id = "artifacts/faculty-eval"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21511
+
+[services.development]
+run = "pnpm --filter @workspace/faculty-eval run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/faculty-eval", "run", "build" ]
+publicDir = "artifacts/faculty-eval/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21511"
+BASE_PATH = "/"
