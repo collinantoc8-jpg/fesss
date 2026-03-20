@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Link, useRoute } from "wouter";
 import { motion } from "framer-motion";
 import { 
@@ -12,13 +12,41 @@ import {
   UserCircle,
 } from "lucide-react";
 import { useAuthContext } from "@/contexts/auth-context";
+import { AuthDialog } from "@/components/auth-dialog";
 
 interface LayoutProps {
   children: ReactNode;
 }
 
 export function AppLayout({ children }: LayoutProps) {
-  const { user, isAuthenticated, isAdmin, login, logout, isLoading } = useAuthContext();
+  const {
+    user,
+    isAuthenticated,
+    isAdmin,
+    login,
+    logout,
+    isLoading,
+    isLocalAuth,
+    allowStudentRegistration,
+    loginWithCredentials,
+    registerStudent,
+  } = useAuthContext();
+  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      setIsAuthDialogOpen(false);
+    }
+  }, [isAuthenticated]);
+
+  function handleLoginClick() {
+    if (isLocalAuth) {
+      setIsAuthDialogOpen(true);
+      return;
+    }
+
+    login();
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row pb-20 md:pb-0">
@@ -64,7 +92,7 @@ export function AppLayout({ children }: LayoutProps) {
             </div>
           ) : (
             <button
-              onClick={login}
+              onClick={handleLoginClick}
               className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white transition-all text-sm"
             >
               <LogIn size={18} />
@@ -87,7 +115,7 @@ export function AppLayout({ children }: LayoutProps) {
               <span className="hidden xs:inline">Log out</span>
             </button>
           ) : (
-            <button onClick={login} className="flex items-center gap-1.5 text-white/80 hover:text-white text-sm">
+            <button onClick={handleLoginClick} className="flex items-center gap-1.5 text-white/80 hover:text-white text-sm">
               <LogIn size={16} />
               <span>Log in</span>
             </button>
@@ -118,6 +146,15 @@ export function AppLayout({ children }: LayoutProps) {
           <MobileNavItem href="/admin" icon={<Settings size={22} />} label="Admin" />
         )}
       </nav>
+
+      <AuthDialog
+        open={isAuthDialogOpen}
+        onOpenChange={setIsAuthDialogOpen}
+        allowStudentRegistration={allowStudentRegistration}
+        onStudentLogin={loginWithCredentials}
+        onStudentRegister={registerStudent}
+        onAdminAccess={login}
+      />
     </div>
   );
 }

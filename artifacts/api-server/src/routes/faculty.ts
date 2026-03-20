@@ -10,6 +10,7 @@ import {
   listFaculty,
   updateFaculty,
 } from "../lib/data-store";
+import { requireAdmin } from "../middlewares/require-admin";
 
 const router: IRouter = Router();
 
@@ -17,7 +18,7 @@ router.get("/faculty", async (_req, res) => {
   res.json(await listFaculty());
 });
 
-router.post("/faculty", async (req, res) => {
+router.post("/faculty", requireAdmin, async (req, res) => {
   const data = CreateFacultyBody.parse(req.body);
   res.status(201).json(await createFaculty(data));
 });
@@ -34,8 +35,11 @@ router.get("/faculty/:id", async (req, res) => {
   res.json(faculty);
 });
 
-router.put("/faculty/:id", async (req, res) => {
-  const id = Number.parseInt(req.params.id, 10);
+router.put("/faculty/:id", requireAdmin, async (req, res) => {
+  const id = Number.parseInt(
+    Array.isArray(req.params.id) ? req.params.id[0] : req.params.id,
+    10,
+  );
   const data = UpdateFacultyBody.parse(req.body);
   const faculty = await updateFaculty(id, data);
 
@@ -47,8 +51,11 @@ router.put("/faculty/:id", async (req, res) => {
   res.json(faculty);
 });
 
-router.delete("/faculty/:id", async (req, res) => {
-  const id = Number.parseInt(req.params.id, 10);
+router.delete("/faculty/:id", requireAdmin, async (req, res) => {
+  const id = Number.parseInt(
+    Array.isArray(req.params.id) ? req.params.id[0] : req.params.id,
+    10,
+  );
   await deleteFaculty(id);
   res.status(204).send();
 });

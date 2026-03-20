@@ -6,10 +6,15 @@ import {
   LogoutMobileSessionResponse,
 } from "@workspace/api-zod";
 import {
-  getLocalDevUserFromRequest,
+  clearLocalSession,
+  createLocalSession,
+  getLocalSessionTokenFromRequest,
+  getLocalUserFromRequest,
   isLocalAuthMode,
+  LOCAL_ADMIN_USER,
   LOCAL_AUTH_COOKIE,
-  LOCAL_AUTH_TOKEN,
+  loginLocalAccount,
+  registerLocalStudentAccount,
 } from "../lib/local-auth";
 
 const OIDC_COOKIE_TTL = 10 * 60 * 1000;
@@ -64,6 +69,10 @@ function setOidcCookie(req: Request, res: Response, name: string, value: string)
   setSessionCookie(req, res, name, value, OIDC_COOKIE_TTL);
 }
 
+function setLocalSessionCookie(req: Request, res: Response, value: string) {
+  setSessionCookie(req, res, LOCAL_AUTH_COOKIE, value, LOCAL_AUTH_TTL);
+}
+
 function getSafeReturnTo(value: unknown): string {
   if (
     typeof value !== "string" ||
@@ -104,21 +113,95 @@ async function upsertUser(claims: Record<string, unknown>) {
   return user;
 }
 
+function getBodyString(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
 router.get("/auth/user", (req: Request, res: Response) => {
   res.json(
     GetCurrentAuthUserResponse.parse({
       user:
-        getLocalDevUserFromRequest(req) ??
+        getLocalUserFromRequest(req) ??
         (req.isAuthenticated() ? req.user : null),
     }),
   );
+});
+
+router.get("/auth/mode", (_req: Request, res: Response) => {
+  res.json({
+    mode: isLocalAuthMode ? "local" : "oidc",
+    allowStudentRegistration: isLocalAuthMode,
+  });
+});
+
+router.post("/auth/register-student", (req: Request, res: Response) => {
+  if (!isLocalAuthMode) {
+    res.status(404).json({ error: "Student registration is unavailable." });
+    return;
+  }
+
+  const result = registerLocalStudentAccount({
+    email: getBodyString(req.body?.email),
+    password: getBodyString(req.body?.password),
+    firstName: getBodyString(req.body?.firstName),
+    lastName: getBodyString(req.body?.lastName),
+  });
+
+  if ("error" in result) {
+    res.status(400).json({ error: result.error });
+    return;
+  }
+
+  const sessionToken = createLocalSession(result.user.id);
+
+  if (!sessionToken) {
+    res.status(500).json({ error: "Failed to create local session." });
+    return;
+  }
+
+  setLocalSessionCookie(req, res, sessionToken);
+  res.status(201).json({ user: result.user });
+});
+
+router.post("/auth/login-local", (req: Request, res: Response) => {
+  if (!isLocalAuthMode) {
+    res.status(404).json({ error: "Local sign-in is unavailable." });
+    return;
+  }
+
+  const result = loginLocalAccount({
+    email: getBodyString(req.body?.email),
+    password: getBodyString(req.body?.password),
+  });
+
+  if ("error" in result) {
+    res.status(401).json({ error: result.error });
+    return;
+  }
+
+  const sessionToken = createLocalSession(result.user.id);
+
+  if (!sessionToken) {
+    res.status(500).json({ error: "Failed to create local session." });
+    return;
+  }
+
+  setLocalSessionCookie(req, res, sessionToken);
+  res.json({ user: result.user });
 });
 
 router.get("/login", async (req: Request, res: Response) => {
   const returnTo = getSafeReturnTo(req.query.returnTo);
 
   if (isLocalAuthMode) {
-    setSessionCookie(req, res, LOCAL_AUTH_COOKIE, "1", LOCAL_AUTH_TTL);
+    const sessionToken = createLocalSession(LOCAL_ADMIN_USER.id);
+
+    if (!sessionToken) {
+      res.status(500).json({ error: "Failed to create admin session." });
+      return;
+    }
+
+    setLocalSessionCookie(req, res, sessionToken);
     res.redirect(returnTo);
     return;
   }
@@ -227,6 +310,7 @@ router.get("/callback", async (req: Request, res: Response) => {
 
 router.get("/logout", async (req: Request, res: Response) => {
   if (isLocalAuthMode) {
+    clearLocalSession(getLocalSessionTokenFromRequest(req));
     res.clearCookie(LOCAL_AUTH_COOKIE, { path: "/" });
     res.redirect("/");
     return;
@@ -263,9 +347,16 @@ router.post(
     const { code, code_verifier, redirect_uri, state, nonce } = parsed.data;
 
     if (isLocalAuthMode) {
+      const sessionToken = createLocalSession(LOCAL_ADMIN_USER.id);
+
+      if (!sessionToken) {
+        res.status(500).json({ error: "Failed to create local session." });
+        return;
+      }
+
       res.json(
         ExchangeMobileAuthorizationCodeResponse.parse({
-          token: LOCAL_AUTH_TOKEN,
+          token: sessionToken,
         }),
       );
       return;
@@ -327,6 +418,7 @@ router.post(
 
 router.post("/mobile-auth/logout", async (req: Request, res: Response) => {
   if (isLocalAuthMode) {
+    clearLocalSession(getLocalSessionTokenFromRequest(req));
     res.json(LogoutMobileSessionResponse.parse({ success: true }));
     return;
   }

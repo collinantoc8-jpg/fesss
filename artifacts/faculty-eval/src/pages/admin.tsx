@@ -1,11 +1,15 @@
 import { useState } from "react";
+import { Link } from "wouter";
 import { useFacultyQuery, useFacultyMutations } from "@/hooks/use-faculty";
 import { useCriteriaQuery, useCriteriaMutations } from "@/hooks/use-criteria";
 import { useDepartmentsQuery, useDepartmentsMutations } from "@/hooks/use-departments";
 import { SectionHeader, LoadingSpinner } from "@/components/ui-patterns";
-import { Plus, Trash2, Pencil, Building2, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useAuthContext } from "@/contexts/auth-context";
+import { Plus, Trash2, Pencil, Building2, ShieldAlert, X } from "lucide-react";
 
 export default function Admin() {
+  const { isAdmin, isLoading: isAuthLoading, login, isLocalAuth } = useAuthContext();
   const [activeTab, setActiveTab] = useState<"departments" | "faculty" | "criteria">("departments");
 
   const tabs: { key: typeof activeTab; label: string }[] = [
@@ -13,6 +17,32 @@ export default function Admin() {
     { key: "faculty", label: "Faculty Members" },
     { key: "criteria", label: "Evaluation Criteria" },
   ];
+
+  if (isAuthLoading) {
+    return <LoadingSpinner />;
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="mx-auto max-w-2xl rounded-3xl border border-border bg-card p-8 shadow-sm">
+        <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
+          <ShieldAlert size={28} />
+        </div>
+        <h1 className="text-2xl font-display font-bold">Administrator access required</h1>
+        <p className="mt-3 text-muted-foreground">
+          This area is limited to administrator accounts. Sign in with admin access or go back to the main evaluation pages.
+        </p>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Button type="button" onClick={login}>
+            {isLocalAuth ? "Switch to Admin" : "Admin Sign In"}
+          </Button>
+          <Button asChild type="button" variant="outline">
+            <Link href="/">Back to Home</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

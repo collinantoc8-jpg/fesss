@@ -6,8 +6,19 @@ interface AuthContextValue {
   isLoading: boolean;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  authMode: "local" | "oidc";
+  isLocalAuth: boolean;
+  allowStudentRegistration: boolean;
   login: () => void;
   logout: () => void;
+  loginWithCredentials: (email: string, password: string) => Promise<void>;
+  registerStudent: (input: {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+  }) => Promise<void>;
+  refresh: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);

@@ -2,7 +2,7 @@ import * as oidc from "openid-client";
 import { type Request, type Response, type NextFunction } from "express";
 import type { AuthUser } from "@workspace/api-zod";
 import {
-  getLocalDevUserFromRequest,
+  getLocalUserFromRequest,
   isLocalAuthMode,
 } from "../lib/local-auth";
 
@@ -67,7 +67,7 @@ export async function authMiddleware(
   } as Request["isAuthenticated"];
 
   if (isLocalAuthMode) {
-    const user = getLocalDevUserFromRequest(req);
+    const user = getLocalUserFromRequest(req);
 
     if (user) {
       req.user = user;
