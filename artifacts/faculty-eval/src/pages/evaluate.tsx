@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { useFacultyQuery } from "@/hooks/use-faculty";
 import { useCriteriaQuery } from "@/hooks/use-criteria";
 import { useSubmitEvaluationMutation } from "@/hooks/use-evaluations";
+import { useAuthContext } from "@/contexts/auth-context";
 import { SectionHeader, LoadingSpinner } from "@/components/ui-patterns";
 import { CheckCircle2, ChevronRight, AlertCircle } from "lucide-react";
 
@@ -10,6 +11,7 @@ type Role = "student" | "peer" | "admin";
 
 export default function Evaluate() {
   const [, setLocation] = useLocation();
+  const { user } = useAuthContext();
   const searchParams = new URLSearchParams(window.location.search);
   const initialFacultyId = searchParams.get("facultyId");
 
@@ -20,16 +22,24 @@ export default function Evaluate() {
   const [step, setStep] = useState(1);
   const [error, setError] = useState<string | null>(null);
 
+  const accountRole = normalizeEvaluatorRole(user?.role);
+  const accountName = getAccountDisplayName(user);
+
   // Form State
   const [facultyId, setFacultyId] = useState<string>(initialFacultyId || "");
-  const [evaluatorName, setEvaluatorName] = useState("");
-  const [evaluatorRole, setEvaluatorRole] = useState<Role>("student");
+  const [evaluatorName, setEvaluatorName] = useState(accountName);
+  const [evaluatorRole, setEvaluatorRole] = useState<Role>(accountRole);
   const [semester, setSemester] = useState("1st Semester");
   const [academicYear, setAcademicYear] = useState(new Date().getFullYear().toString());
   
   // Criteria scores mapping: criterionId -> score
   const [scores, setScores] = useState<Record<number, number>>({});
   const [comments, setComments] = useState("");
+
+  useEffect(() => {
+    setEvaluatorName(accountName);
+    setEvaluatorRole(accountRole);
+  }, [accountName, accountRole, user?.id]);
 
   const handleNext = () => {
     setError(null);
@@ -124,24 +134,22 @@ export default function Evaluate() {
                 <input 
                   type="text" 
                   value={evaluatorName}
-                  onChange={e => setEvaluatorName(e.target.value)}
-                  placeholder="John Doe"
-                  className="w-full px-4 py-3 rounded-xl border border-border bg-background focus:ring-2 focus:ring-primary/20"
+                  readOnly
+                  className="w-full px-4 py-3 rounded-xl border border-border bg-muted/40 text-muted-foreground"
                 />
+                <p className="mt-1 text-xs text-muted-foreground">Pulled from your signed-in account.</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">Your Role</label>
-                  <select 
-                    value={evaluatorRole} 
-                    onChange={e => setEvaluatorRole(e.target.value as Role)}
-                    className="w-full px-4 py-3 rounded-xl border border-border bg-background focus:ring-2 focus:ring-primary/20"
-                  >
-                    <option value="student">Student</option>
-                    <option value="peer">Peer / Colleague</option>
-                    <option value="admin">Administrator</option>
-                  </select>
+                  <label className="block text-sm font-medium text-foreground mb-1">Account Role</label>
+                  <input
+                    type="text"
+                    value={formatRoleLabel(evaluatorRole)}
+                    readOnly
+                    className="w-full px-4 py-3 rounded-xl border border-border bg-muted/40 text-muted-foreground"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">Your evaluation role matches your account role.</p>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
@@ -287,4 +295,31 @@ export default function Evaluate() {
       </div>
     </div>
   );
+}
+
+function normalizeEvaluatorRole(role: string | null | undefined): Role {
+  return role === "peer" || role === "admin" ? role : "student";
+}
+
+function getAccountDisplayName(
+  user: {
+    firstName?: string | null;
+    lastName?: string | null;
+    email?: string | null;
+  } | null,
+): string {
+  const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim();
+  return fullName || user?.email || "";
+}
+
+function formatRoleLabel(role: Role): string {
+  if (role === "peer") {
+    return "Peer / Colleague";
+  }
+
+  if (role === "admin") {
+    return "Administrator";
+  }
+
+  return "Student";
 }
