@@ -82,10 +82,18 @@ export default function Evaluate() {
   };
 
   if (facultyLoading || criteriaLoading) return <LoadingSpinner />;
+  const isLimitedUser = user?.role !== "admin";
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <SectionHeader title="Evaluate Faculty" description="Provide your honest and constructive feedback" />
+      <SectionHeader
+        title={isLimitedUser ? "Evaluation Criteria" : "Evaluate Faculty"}
+        description={
+          isLimitedUser
+            ? "Review the criteria and submit your faculty evaluation."
+            : "Provide your honest and constructive feedback"
+        }
+      />
 
       {/* Progress Steps */}
       <div className="flex items-center justify-between mb-8 relative">

@@ -1,5 +1,5 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
-import { AlertCircle, Shield, UserRound, Users } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
+import { AlertCircle, Shield } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -98,36 +98,20 @@ export function AuthPanel({
   }
 
   return (
-    <div className={cn("rounded-[2rem] border border-border bg-card p-6 shadow-xl", className)}>
+    <div className={cn("rounded-[2rem] border border-border bg-card p-6 shadow-lg", className)}>
       <div className="space-y-2">
         <h2 className="text-2xl font-display font-bold text-foreground">
-          Sign in first
+          Login
         </h2>
         <p className="text-sm text-muted-foreground">
-          Student and peer accounts can evaluate and view evaluation stats.
-          Admin accounts unlock the full management area.
+          Use your account to continue. Students and peers get evaluation access.
         </p>
       </div>
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-3">
-        <RoleCard
-          icon={<UserRound className="h-5 w-5" />}
-          title="Student"
-          description="Evaluate and view stats"
-          accent="border-primary/30 bg-primary/5 text-primary"
-        />
-        <RoleCard
-          icon={<Users className="h-5 w-5" />}
-          title="Peer"
-          description="Reviewer access"
-          accent="border-accent/40 bg-accent/10 text-accent-foreground"
-        />
-        <RoleCard
-          icon={<Shield className="h-5 w-5" />}
-          title="Admin"
-          description="Management access"
-          accent="border-amber-500/30 bg-amber-500/10 text-amber-700"
-        />
+      <div className="mt-4 flex flex-wrap gap-2">
+        <RolePill label="Student" accent="bg-primary/8 text-primary" />
+        <RolePill label="Peer" accent="bg-accent/15 text-accent-foreground" />
+        <RolePill label="Admin" accent="bg-amber-500/12 text-amber-700" />
       </div>
 
       {error ? (
@@ -291,23 +275,11 @@ export function AuthPanel({
   );
 }
 
-function RoleCard({
-  icon,
-  title,
-  description,
-  accent,
-}: {
-  icon: ReactNode;
-  title: string;
-  description: string;
-  accent: string;
-}) {
+function RolePill({ label, accent }: { label: string; accent: string }) {
   return (
-    <div className={cn("rounded-2xl border p-4", accent)}>
-      <div className="mb-3 inline-flex rounded-xl bg-white/50 p-2">{icon}</div>
-      <h4 className="font-semibold">{title}</h4>
-      <p className="mt-1 text-sm opacity-80">{description}</p>
-    </div>
+    <span className={cn("rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]", accent)}>
+      {label}
+    </span>
   );
 }
 

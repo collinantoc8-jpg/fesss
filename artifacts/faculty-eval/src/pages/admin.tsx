@@ -1,22 +1,49 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "wouter";
 import { useFacultyQuery, useFacultyMutations } from "@/hooks/use-faculty";
 import { useCriteriaQuery, useCriteriaMutations } from "@/hooks/use-criteria";
 import { useDepartmentsQuery, useDepartmentsMutations } from "@/hooks/use-departments";
+import {
+  useLocalAccountsMutations,
+  useLocalAccountsQuery,
+} from "@/hooks/use-local-accounts";
 import { SectionHeader, LoadingSpinner } from "@/components/ui-patterns";
 import { Button } from "@/components/ui/button";
 import { useAuthContext } from "@/contexts/auth-context";
-import { Plus, Trash2, Pencil, Building2, ShieldAlert, X } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import {
+  BookUser,
+  Building2,
+  Pencil,
+  Plus,
+  ShieldAlert,
+  Trash2,
+  UserPlus2,
+  Users,
+  X,
+} from "lucide-react";
+
+type AdminTab = "accounts" | "departments" | "faculty" | "criteria";
 
 export default function Admin() {
   const { isAdmin, isLoading: isAuthLoading, login, isLocalAuth } = useAuthContext();
-  const [activeTab, setActiveTab] = useState<"departments" | "faculty" | "criteria">("departments");
+  const [activeTab, setActiveTab] = useState<AdminTab>(
+    isLocalAuth ? "accounts" : "departments",
+  );
 
-  const tabs: { key: typeof activeTab; label: string }[] = [
-    { key: "departments", label: "Departments" },
-    { key: "faculty", label: "Faculty Members" },
-    { key: "criteria", label: "Evaluation Criteria" },
-  ];
+  const tabs = useMemo(() => {
+    const base: Array<{ key: AdminTab; label: string }> = [
+      { key: "departments", label: "Departments" },
+      { key: "faculty", label: "Faculty Members" },
+      { key: "criteria", label: "Evaluation Criteria" },
+    ];
+
+    if (isLocalAuth) {
+      return [{ key: "accounts" as const, label: "Student Accounts" }, ...base];
+    }
+
+    return base;
+  }, [isLocalAuth]);
 
   if (isAuthLoading) {
     return <LoadingSpinner />;
@@ -48,18 +75,18 @@ export default function Admin() {
     <div className="space-y-6">
       <SectionHeader
         title="Administration"
-        description="Manage departments, faculty, and evaluation frameworks"
+        description="Manage local student accounts, departments, faculty, and evaluation criteria."
       />
 
-      <div className="flex gap-1 border-b border-border mb-6 overflow-x-auto">
-        {tabs.map(tab => (
+      <div className="flex gap-1 overflow-x-auto border-b border-border pb-1">
+        {tabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`px-5 py-3 font-semibold text-sm border-b-2 transition-colors whitespace-nowrap ${
+            className={`whitespace-nowrap rounded-t-xl px-5 py-3 text-sm font-semibold transition-colors ${
               activeTab === tab.key
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                ? "border-b-2 border-primary text-primary"
+                : "border-b-2 border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
             {tab.label}
@@ -67,6 +94,7 @@ export default function Admin() {
         ))}
       </div>
 
+      {activeTab === "accounts" && <AccountsManagement />}
       {activeTab === "departments" && <DepartmentsManagement />}
       {activeTab === "faculty" && <FacultyManagement />}
       {activeTab === "criteria" && <CriteriaManagement />}
@@ -74,10 +102,227 @@ export default function Admin() {
   );
 }
 
+function AccountsManagement() {
+  const { isLocalAuth } = useAuthContext();
+  const { toast } = useToast();
+  const { data, isLoading } = useLocalAccountsQuery(isLocalAuth);
+  const { createAccount, deleteAccount, isCreating, isDeleting } =
+    useLocalAccountsMutations();
+
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState<"student" | "peer">("student");
+
+  const accounts = data?.accounts ?? [];
+  const studentCount = accounts.filter((account) => account.role === "student").length;
+  const peerCount = accounts.filter((account) => account.role === "peer").length;
+
+  async function handleCreateAccount(event: React.FormEvent) {
+    event.preventDefault();
+
+    try {
+      await createAccount({ firstName, lastName, email, password, role });
+      setFirstName("");
+      setLastName("");
+      setEmail("");
+      setPassword("");
+      setRole("student");
+      toast({
+        title: "Account created",
+        description: "The student account is now available on the login page.",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Unable to create account",
+        description:
+          error instanceof Error ? error.message : "Please try again.",
+      });
+    }
+  }
+
+  async function handleDeleteAccount(id: string, label: string) {
+    if (!confirm(`Delete account for ${label}?`)) {
+      return;
+    }
+
+    try {
+      await deleteAccount(id);
+      toast({
+        title: "Account removed",
+        description: "The login has been removed from the student accounts list.",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Unable to remove account",
+        description:
+          error instanceof Error ? error.message : "Please try again.",
+      });
+    }
+  }
+
+  if (!isLocalAuth) {
+    return (
+      <div className="rounded-3xl border border-border bg-card p-8 shadow-sm">
+        <h3 className="text-xl font-bold">Student Accounts</h3>
+        <p className="mt-3 text-muted-foreground">
+          Local student account management is only available when the app is
+          running in local auth mode.
+        </p>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
+
+  return (
+    <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+      <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+        <SectionHeader
+          title="Add Student Account"
+          description="Create a student or peer login that appears on the simple login page."
+        />
+
+        <div className="mb-6 grid gap-4 sm:grid-cols-3">
+          <StatCard label="Total Accounts" value={accounts.length.toString()} />
+          <StatCard label="Students" value={studentCount.toString()} />
+          <StatCard label="Peers" value={peerCount.toString()} />
+        </div>
+
+        <form className="space-y-4" onSubmit={handleCreateAccount}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field
+              label="First Name"
+              value={firstName}
+              onChange={setFirstName}
+              placeholder="First name"
+            />
+            <Field
+              label="Last Name"
+              value={lastName}
+              onChange={setLastName}
+              placeholder="Last name"
+            />
+          </div>
+
+          <Field
+            label="Email"
+            type="email"
+            value={email}
+            onChange={setEmail}
+            placeholder="student@example.com"
+          />
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field
+              label="Password"
+              type="password"
+              value={password}
+              onChange={setPassword}
+              placeholder="At least 6 characters"
+            />
+
+            <div>
+              <label className="mb-1 block text-sm font-medium">Role</label>
+              <select
+                value={role}
+                onChange={(event) => setRole(event.target.value as "student" | "peer")}
+                className="w-full rounded-xl border border-border bg-background px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                {(data?.allowedRoles ?? ["student", "peer"]).map((allowedRole) => (
+                  <option key={allowedRole} value={allowedRole}>
+                    {allowedRole === "student" ? "Student" : "Peer"}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <Button type="submit" className="w-full" disabled={isCreating}>
+            <UserPlus2 className="h-4 w-4" />
+            {isCreating ? "Creating account..." : "Create Account"}
+          </Button>
+        </form>
+      </div>
+
+      <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+        <SectionHeader
+          title="Current Student Accounts"
+          description="These local accounts can log in, evaluate faculty, and view evaluation stats."
+        />
+
+        {accounts.length === 0 ? (
+          <div className="rounded-2xl border-2 border-dashed border-border px-6 py-12 text-center">
+            <BookUser className="mx-auto mb-4 h-10 w-10 text-muted-foreground/50" />
+            <p className="font-medium text-muted-foreground">No student accounts yet.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Create the first account using the form on the left.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {accounts.map((account) => {
+              const fullName =
+                `${account.firstName ?? ""} ${account.lastName ?? ""}`.trim() ||
+                account.email ||
+                "Account";
+
+              return (
+                <div
+                  key={account.id}
+                  className="flex flex-col gap-4 rounded-2xl border border-border p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h4 className="truncate text-lg font-semibold">{fullName}</h4>
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${
+                          account.role === "peer"
+                            ? "bg-accent/15 text-accent-foreground"
+                            : "bg-primary/10 text-primary"
+                        }`}
+                      >
+                        {account.role}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground">{account.email}</p>
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="shrink-0"
+                    disabled={isDeleting}
+                    onClick={() => handleDeleteAccount(account.id, fullName)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Remove
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function DepartmentsManagement() {
   const { data: departments, isLoading } = useDepartmentsQuery();
-  const { createDepartment, updateDepartment, deleteDepartment, isCreating, isUpdating, isDeleting } =
-    useDepartmentsMutations();
+  const {
+    createDepartment,
+    updateDepartment,
+    deleteDepartment,
+    isCreating,
+    isUpdating,
+    isDeleting,
+  } = useDepartmentsMutations();
 
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -87,11 +332,18 @@ function DepartmentsManagement() {
 
   const openCreate = () => {
     setEditingId(null);
-    setName(""); setCode(""); setDescription("");
+    setName("");
+    setCode("");
+    setDescription("");
     setShowModal(true);
   };
 
-  const openEdit = (dept: { id: number; name: string; code: string; description?: string | null }) => {
+  const openEdit = (dept: {
+    id: number;
+    name: string;
+    code: string;
+    description?: string | null;
+  }) => {
     setEditingId(dept.id);
     setName(dept.name);
     setCode(dept.code);
@@ -99,8 +351,8 @@ function DepartmentsManagement() {
     setShowModal(true);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     const data = { name, code, description: description || undefined };
     if (editingId) {
       await updateDepartment({ id: editingId, data });
@@ -111,7 +363,11 @@ function DepartmentsManagement() {
   };
 
   const handleDelete = async (id: number, deptName: string) => {
-    if (confirm(`Delete "${deptName}" department? Faculty assigned to it will keep their department label.`)) {
+    if (
+      confirm(
+        `Delete "${deptName}" department? Faculty assigned to it will keep their department label.`,
+      )
+    ) {
       await deleteDepartment({ id });
     }
   };
@@ -121,40 +377,43 @@ function DepartmentsManagement() {
   return (
     <div className="space-y-6">
       <div className="flex justify-end">
-        <button
-          onClick={openCreate}
-          className="bg-primary text-primary-foreground px-4 py-2 rounded-xl font-semibold flex items-center gap-2 hover:bg-primary/90 shadow-sm"
-        >
-          <Plus size={18} /> Add Department
-        </button>
+        <Button type="button" onClick={openCreate}>
+          <Plus className="h-4 w-4" />
+          Add Department
+        </Button>
       </div>
 
       {departments?.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 border-2 border-dashed border-border rounded-2xl gap-3 text-center">
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-border py-16 text-center">
           <Building2 size={40} className="text-muted-foreground/40" />
-          <p className="text-muted-foreground font-medium">No departments yet.</p>
-          <p className="text-sm text-muted-foreground">Add your first department to get started.</p>
+          <p className="font-medium text-muted-foreground">No departments yet.</p>
+          <p className="text-sm text-muted-foreground">
+            Add your first department to get started.
+          </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {departments?.map(dept => (
-            <div key={dept.id} className="bg-card border border-border rounded-2xl p-5 shadow-sm flex flex-col gap-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {departments?.map((dept) => (
+            <div
+              key={dept.id}
+              className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 shadow-sm"
+            >
               <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                <div className="flex min-w-0 items-center gap-2">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
                     <Building2 size={18} className="text-primary" />
                   </div>
                   <div className="min-w-0">
-                    <h4 className="font-bold text-foreground truncate">{dept.name}</h4>
-                    <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                    <h4 className="truncate font-bold text-foreground">{dept.name}</h4>
+                    <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold uppercase tracking-wider text-primary">
                       {dept.code}
                     </span>
                   </div>
                 </div>
-                <div className="flex gap-1 shrink-0">
+                <div className="flex shrink-0 gap-1">
                   <button
                     onClick={() => openEdit(dept)}
-                    className="text-muted-foreground hover:text-primary hover:bg-primary/10 p-2 rounded-lg transition-colors"
+                    className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
                     title="Edit"
                   >
                     <Pencil size={16} />
@@ -162,7 +421,7 @@ function DepartmentsManagement() {
                   <button
                     onClick={() => handleDelete(dept.id, dept.name)}
                     disabled={isDeleting}
-                    className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors disabled:opacity-50"
+                    className="rounded-lg p-2 text-red-500 transition-colors hover:bg-red-50 disabled:opacity-50"
                     title="Delete"
                   >
                     <Trash2 size={16} />
@@ -170,9 +429,11 @@ function DepartmentsManagement() {
                 </div>
               </div>
               {dept.description && (
-                <p className="text-sm text-muted-foreground leading-relaxed">{dept.description}</p>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {dept.description}
+                </p>
               )}
-              <div className="pt-2 border-t border-border/50 text-xs text-muted-foreground">
+              <div className="border-t border-border/50 pt-2 text-xs text-muted-foreground">
                 Added {new Date(dept.createdAt).toLocaleDateString()}
               </div>
             </div>
@@ -181,60 +442,55 @@ function DepartmentsManagement() {
       )}
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-card rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95">
-            <div className="p-6 border-b border-border flex items-center justify-between">
-              <h3 className="text-xl font-bold">{editingId ? "Edit Department" : "Add Department"}</h3>
-              <button onClick={() => setShowModal(false)} className="text-muted-foreground hover:text-foreground p-1 rounded-lg">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md overflow-hidden rounded-2xl bg-card shadow-2xl animate-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-border p-6">
+              <h3 className="text-xl font-bold">
+                {editingId ? "Edit Department" : "Add Department"}
+              </h3>
+              <button
+                onClick={() => setShowModal(false)}
+                className="rounded-lg p-1 text-muted-foreground hover:text-foreground"
+              >
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4 p-6">
+              <Field
+                label="Department Name"
+                value={name}
+                onChange={setName}
+                placeholder="e.g., College of Engineering"
+              />
+              <Field
+                label="Department Code"
+                value={code}
+                onChange={(value) => setCode(value.toUpperCase())}
+                placeholder="e.g., COE"
+              />
               <div>
-                <label className="block text-sm font-medium mb-1">Department Name <span className="text-red-500">*</span></label>
-                <input
-                  required
-                  placeholder="e.g., College of Engineering"
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none bg-background"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Department Code <span className="text-red-500">*</span></label>
-                <input
-                  required
-                  placeholder="e.g., COE"
-                  value={code}
-                  onChange={e => setCode(e.target.value.toUpperCase())}
-                  className="w-full px-4 py-2.5 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none bg-background uppercase"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Description <span className="text-muted-foreground font-normal">(optional)</span></label>
+                <label className="mb-1 block text-sm font-medium">
+                  Description <span className="font-normal text-muted-foreground">(optional)</span>
+                </label>
                 <textarea
                   rows={3}
                   placeholder="Brief description of this department..."
                   value={description}
-                  onChange={e => setDescription(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none bg-background resize-none"
+                  onChange={(event) => setDescription(event.target.value)}
+                  className="w-full resize-none rounded-xl border border-border bg-background px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
-              <div className="pt-4 flex justify-end gap-3">
+              <div className="flex justify-end gap-3 pt-4">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 rounded-xl text-muted-foreground hover:bg-muted font-medium"
+                  className="rounded-xl px-4 py-2 font-medium text-muted-foreground hover:bg-muted"
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  disabled={isCreating || isUpdating}
-                  className="bg-primary text-primary-foreground px-6 py-2 rounded-xl font-semibold shadow-md hover:bg-primary/90 disabled:opacity-50"
-                >
+                <Button type="submit" disabled={isCreating || isUpdating}>
                   {isCreating || isUpdating ? "Saving..." : editingId ? "Update" : "Save"}
-                </button>
+                </Button>
               </div>
             </form>
           </div>
@@ -246,7 +502,8 @@ function DepartmentsManagement() {
 
 function FacultyManagement() {
   const { data: faculty, isLoading } = useFacultyQuery();
-  const { createFaculty, deleteFaculty, isCreating, isDeleting } = useFacultyMutations();
+  const { createFaculty, deleteFaculty, isCreating, isDeleting } =
+    useFacultyMutations();
   const { data: departments } = useDepartmentsQuery();
   const [showModal, setShowModal] = useState(false);
 
@@ -255,11 +512,14 @@ function FacultyManagement() {
   const [position, setPosition] = useState("");
   const [email, setEmail] = useState("");
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreate = async (event: React.FormEvent) => {
+    event.preventDefault();
     await createFaculty({ data: { name, department, position, email } });
     setShowModal(false);
-    setName(""); setDepartment(""); setPosition(""); setEmail("");
+    setName("");
+    setDepartment("");
+    setPosition("");
+    setEmail("");
   };
 
   const handleDelete = async (id: number) => {
@@ -273,38 +533,38 @@ function FacultyManagement() {
   return (
     <div className="space-y-6">
       <div className="flex justify-end">
-        <button
-          onClick={() => setShowModal(true)}
-          className="bg-primary text-primary-foreground px-4 py-2 rounded-xl font-semibold flex items-center gap-2 hover:bg-primary/90 shadow-sm"
-        >
-          <Plus size={18} /> Add Faculty
-        </button>
+        <Button type="button" onClick={() => setShowModal(true)}>
+          <Plus className="h-4 w-4" />
+          Add Faculty
+        </Button>
       </div>
 
-      <div className="bg-card border border-border shadow-sm rounded-2xl overflow-hidden">
+      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full border-collapse text-left">
             <thead>
-              <tr className="bg-muted/50 border-b border-border">
-                <th className="p-4 font-semibold text-sm text-muted-foreground">Name</th>
-                <th className="p-4 font-semibold text-sm text-muted-foreground">Department</th>
-                <th className="p-4 font-semibold text-sm text-muted-foreground">Position</th>
-                <th className="p-4 font-semibold text-sm text-muted-foreground">Email</th>
-                <th className="p-4 font-semibold text-sm text-muted-foreground text-right">Actions</th>
+              <tr className="border-b border-border bg-muted/50">
+                <th className="p-4 text-sm font-semibold text-muted-foreground">Name</th>
+                <th className="p-4 text-sm font-semibold text-muted-foreground">Department</th>
+                <th className="p-4 text-sm font-semibold text-muted-foreground">Position</th>
+                <th className="p-4 text-sm font-semibold text-muted-foreground">Email</th>
+                <th className="p-4 text-right text-sm font-semibold text-muted-foreground">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {faculty?.map(f => (
-                <tr key={f.id} className="hover:bg-muted/20 transition-colors">
-                  <td className="p-4 font-medium">{f.name}</td>
-                  <td className="p-4 text-muted-foreground">{f.department}</td>
-                  <td className="p-4 text-muted-foreground">{f.position}</td>
-                  <td className="p-4 text-muted-foreground">{f.email}</td>
+              {faculty?.map((member) => (
+                <tr key={member.id} className="transition-colors hover:bg-muted/20">
+                  <td className="p-4 font-medium">{member.name}</td>
+                  <td className="p-4 text-muted-foreground">{member.department}</td>
+                  <td className="p-4 text-muted-foreground">{member.position}</td>
+                  <td className="p-4 text-muted-foreground">{member.email}</td>
                   <td className="p-4 text-right">
                     <button
-                      onClick={() => handleDelete(f.id)}
+                      onClick={() => handleDelete(member.id)}
                       disabled={isDeleting}
-                      className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors disabled:opacity-50"
+                      className="rounded-lg p-2 text-red-500 transition-colors hover:bg-red-50 disabled:opacity-50"
                       title="Delete"
                     >
                       <Trash2 size={18} />
@@ -325,50 +585,73 @@ function FacultyManagement() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-card rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95">
-            <div className="p-6 border-b border-border flex items-center justify-between">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md overflow-hidden rounded-2xl bg-card shadow-2xl animate-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-border p-6">
               <h3 className="text-xl font-bold">Add New Faculty</h3>
-              <button onClick={() => setShowModal(false)} className="text-muted-foreground hover:text-foreground p-1 rounded-lg">
+              <button
+                onClick={() => setShowModal(false)}
+                className="rounded-lg p-1 text-muted-foreground hover:text-foreground"
+              >
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={handleCreate} className="p-6 space-y-4">
+            <form onSubmit={handleCreate} className="space-y-4 p-6">
+              <Field
+                label="Full Name"
+                value={name}
+                onChange={setName}
+                placeholder="Faculty member name"
+              />
               <div>
-                <label className="block text-sm font-medium mb-1">Full Name</label>
-                <input required value={name} onChange={e => setName(e.target.value)} className="w-full px-4 py-2.5 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none bg-background" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Department</label>
+                <label className="mb-1 block text-sm font-medium">Department</label>
                 {departments && departments.length > 0 ? (
                   <select
                     required
                     value={department}
-                    onChange={e => setDepartment(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none bg-background"
+                    onChange={(event) => setDepartment(event.target.value)}
+                    className="w-full rounded-xl border border-border bg-background px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20"
                   >
                     <option value="">Select a department...</option>
-                    {departments.map(d => (
-                      <option key={d.id} value={d.name}>{d.name}</option>
+                    {departments.map((dept) => (
+                      <option key={dept.id} value={dept.name}>
+                        {dept.name}
+                      </option>
                     ))}
                   </select>
                 ) : (
-                  <input required placeholder="e.g., Computer Science" value={department} onChange={e => setDepartment(e.target.value)} className="w-full px-4 py-2.5 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none bg-background" />
+                  <Field
+                    label=""
+                    value={department}
+                    onChange={setDepartment}
+                    placeholder="e.g., Computer Science"
+                  />
                 )}
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Position</label>
-                <input required value={position} onChange={e => setPosition(e.target.value)} className="w-full px-4 py-2.5 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none bg-background" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Email</label>
-                <input required type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-2.5 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none bg-background" />
-              </div>
-              <div className="pt-4 flex justify-end gap-3">
-                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 rounded-xl text-muted-foreground hover:bg-muted font-medium">Cancel</button>
-                <button type="submit" disabled={isCreating} className="bg-primary text-primary-foreground px-6 py-2 rounded-xl font-semibold shadow-md hover:bg-primary/90 disabled:opacity-50">
-                  {isCreating ? "Saving..." : "Save"}
+              <Field
+                label="Position"
+                value={position}
+                onChange={setPosition}
+                placeholder="e.g., Associate Professor"
+              />
+              <Field
+                label="Email"
+                type="email"
+                value={email}
+                onChange={setEmail}
+                placeholder="faculty@example.com"
+              />
+              <div className="flex justify-end gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="rounded-xl px-4 py-2 font-medium text-muted-foreground hover:bg-muted"
+                >
+                  Cancel
                 </button>
+                <Button type="submit" disabled={isCreating}>
+                  {isCreating ? "Saving..." : "Save"}
+                </Button>
               </div>
             </form>
           </div>
@@ -380,7 +663,8 @@ function FacultyManagement() {
 
 function CriteriaManagement() {
   const { data: criteria, isLoading } = useCriteriaQuery();
-  const { createCriterion, deleteCriterion, isCreating, isDeleting } = useCriteriaMutations();
+  const { createCriterion, deleteCriterion, isCreating, isDeleting } =
+    useCriteriaMutations();
   const [showModal, setShowModal] = useState(false);
 
   const [name, setName] = useState("");
@@ -388,11 +672,13 @@ function CriteriaManagement() {
   const [category, setCategory] = useState("");
   const maxScore = 5;
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreate = async (event: React.FormEvent) => {
+    event.preventDefault();
     await createCriterion({ data: { name, description, category, maxScore } });
     setShowModal(false);
-    setName(""); setDescription(""); setCategory("");
+    setName("");
+    setDescription("");
+    setCategory("");
   };
 
   const handleDelete = async (id: number) => {
@@ -406,75 +692,136 @@ function CriteriaManagement() {
   return (
     <div className="space-y-6">
       <div className="flex justify-end">
-        <button
-          onClick={() => setShowModal(true)}
-          className="bg-accent text-accent-foreground px-4 py-2 rounded-xl font-semibold flex items-center gap-2 hover:bg-accent/90 shadow-sm"
-        >
-          <Plus size={18} /> Add Criterion
-        </button>
+        <Button type="button" onClick={() => setShowModal(true)}>
+          <Plus className="h-4 w-4" />
+          Add Criterion
+        </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {criteria?.map(c => (
-          <div key={c.id} className="bg-card p-5 rounded-2xl border border-border shadow-sm flex flex-col">
-            <div className="flex justify-between items-start mb-2">
-              <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded-md uppercase tracking-wider">
-                {c.category}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {criteria?.map((criterion) => (
+          <div
+            key={criterion.id}
+            className="flex flex-col rounded-2xl border border-border bg-card p-5 shadow-sm"
+          >
+            <div className="mb-2 flex items-start justify-between">
+              <span className="rounded-md bg-primary/10 px-2 py-1 text-xs font-bold uppercase tracking-wider text-primary">
+                {criterion.category}
               </span>
               <button
-                onClick={() => handleDelete(c.id)}
+                onClick={() => handleDelete(criterion.id)}
                 disabled={isDeleting}
-                className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors disabled:opacity-50"
+                className="rounded-lg p-1.5 text-red-500 transition-colors hover:bg-red-50 disabled:opacity-50"
               >
                 <Trash2 size={16} />
               </button>
             </div>
-            <h4 className="text-lg font-bold mb-2">{c.name}</h4>
-            <p className="text-sm text-muted-foreground flex-1">{c.description}</p>
-            <div className="mt-4 pt-4 border-t border-border/50 text-xs text-muted-foreground font-medium">
-              Scale: 1 to {c.maxScore}
+            <h4 className="mb-2 text-lg font-bold">{criterion.name}</h4>
+            <p className="flex-1 text-sm text-muted-foreground">
+              {criterion.description}
+            </p>
+            <div className="mt-4 border-t border-border/50 pt-4 text-xs font-medium text-muted-foreground">
+              Scale: 1 to {criterion.maxScore}
             </div>
           </div>
         ))}
         {criteria?.length === 0 && (
-          <div className="col-span-full p-8 text-center text-muted-foreground border-2 border-dashed border-border rounded-2xl">
+          <div className="col-span-full rounded-2xl border-2 border-dashed border-border p-8 text-center text-muted-foreground">
             No criteria defined. Add some to start evaluating.
           </div>
         )}
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-card rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95">
-            <div className="p-6 border-b border-border flex items-center justify-between">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md overflow-hidden rounded-2xl bg-card shadow-2xl animate-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-border p-6">
               <h3 className="text-xl font-bold">Add Criterion</h3>
-              <button onClick={() => setShowModal(false)} className="text-muted-foreground hover:text-foreground p-1 rounded-lg">
+              <button
+                onClick={() => setShowModal(false)}
+                className="rounded-lg p-1 text-muted-foreground hover:text-foreground"
+              >
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={handleCreate} className="p-6 space-y-4">
+            <form onSubmit={handleCreate} className="space-y-4 p-6">
+              <Field
+                label="Category"
+                value={category}
+                onChange={setCategory}
+                placeholder="e.g., Teaching, Research, Service"
+              />
+              <Field
+                label="Criterion Name"
+                value={name}
+                onChange={setName}
+                placeholder="e.g., Clarity of Instruction"
+              />
               <div>
-                <label className="block text-sm font-medium mb-1">Category</label>
-                <input required placeholder="e.g., Teaching, Research, Service" value={category} onChange={e => setCategory(e.target.value)} className="w-full px-4 py-2.5 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none bg-background" />
+                <label className="mb-1 block text-sm font-medium">Description</label>
+                <textarea
+                  required
+                  rows={3}
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                  className="w-full resize-none rounded-xl border border-border bg-background px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Criterion Name</label>
-                <input required placeholder="e.g., Clarity of Instruction" value={name} onChange={e => setName(e.target.value)} className="w-full px-4 py-2.5 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none bg-background" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Description</label>
-                <textarea required rows={3} value={description} onChange={e => setDescription(e.target.value)} className="w-full px-4 py-2.5 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none bg-background resize-none" />
-              </div>
-              <div className="pt-4 flex justify-end gap-3">
-                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 rounded-xl text-muted-foreground hover:bg-muted font-medium">Cancel</button>
-                <button type="submit" disabled={isCreating} className="bg-primary text-primary-foreground px-6 py-2 rounded-xl font-semibold shadow-md hover:bg-primary/90 disabled:opacity-50">
-                  {isCreating ? "Saving..." : "Save"}
+              <div className="flex justify-end gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="rounded-xl px-4 py-2 font-medium text-muted-foreground hover:bg-muted"
+                >
+                  Cancel
                 </button>
+                <Button type="submit" disabled={isCreating}>
+                  {isCreating ? "Saving..." : "Save"}
+                </Button>
               </div>
             </form>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  type?: string;
+}) {
+  return (
+    <div>
+      {label ? <label className="mb-1 block text-sm font-medium">{label}</label> : null}
+      <input
+        required
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-xl border border-border bg-background px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20"
+      />
+    </div>
+  );
+}
+
+function StatCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-border bg-muted/30 p-4">
+      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-2 text-2xl font-display font-bold text-foreground">{value}</div>
     </div>
   );
 }

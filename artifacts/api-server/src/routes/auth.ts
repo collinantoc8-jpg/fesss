@@ -8,15 +8,18 @@ import {
 import {
   clearLocalSession,
   createLocalSession,
+  deleteLocalAccount,
   getLocalSessionTokenFromRequest,
   getLocalUserFromRequest,
   isLocalAuthMode,
+  listManagedLocalAccounts,
   LOCAL_SELF_SERVICE_ROLES,
   LOCAL_ADMIN_USER,
   LOCAL_AUTH_COOKIE,
   loginLocalAccount,
   registerLocalAccount,
 } from "../lib/local-auth";
+import { requireAdmin } from "../middlewares/require-admin";
 
 const OIDC_COOKIE_TTL = 10 * 60 * 1000;
 const LOCAL_AUTH_TTL = 30 * 24 * 60 * 60 * 1000;
@@ -191,6 +194,57 @@ router.post("/auth/login-local", (req: Request, res: Response) => {
 
   setLocalSessionCookie(req, res, sessionToken);
   res.json({ user: result.user });
+});
+
+router.get("/auth/accounts", requireAdmin, (req: Request, res: Response) => {
+  if (!isLocalAuthMode) {
+    res.status(404).json({ error: "Local account management is unavailable." });
+    return;
+  }
+
+  res.json({
+    accounts: listManagedLocalAccounts(),
+    allowedRoles: LOCAL_SELF_SERVICE_ROLES,
+  });
+});
+
+router.post("/auth/accounts", requireAdmin, (req: Request, res: Response) => {
+  if (!isLocalAuthMode) {
+    res.status(404).json({ error: "Local account management is unavailable." });
+    return;
+  }
+
+  const result = registerLocalAccount({
+    email: getBodyString(req.body?.email),
+    password: getBodyString(req.body?.password),
+    firstName: getBodyString(req.body?.firstName),
+    lastName: getBodyString(req.body?.lastName),
+    role: getBodyString(req.body?.role),
+  });
+
+  if ("error" in result) {
+    res.status(400).json({ error: result.error });
+    return;
+  }
+
+  res.status(201).json({ user: result.user });
+});
+
+router.delete("/auth/accounts/:id", requireAdmin, (req: Request, res: Response) => {
+  if (!isLocalAuthMode) {
+    res.status(404).json({ error: "Local account management is unavailable." });
+    return;
+  }
+
+  const userId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const deleted = deleteLocalAccount(userId);
+
+  if (!deleted) {
+    res.status(404).json({ error: "Account not found." });
+    return;
+  }
+
+  res.status(204).send();
 });
 
 router.get("/login", async (req: Request, res: Response) => {

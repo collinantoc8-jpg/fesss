@@ -2,12 +2,14 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { Trophy, Search, ChevronRight, CalendarDays, BookOpen } from "lucide-react";
 import { useResultsQuery, useAcademicYearsQuery } from "@/hooks/use-results";
+import { useAuthContext } from "@/contexts/auth-context";
 import { SectionHeader, LoadingSpinner, ScoreProgressBar, EmptyState } from "@/components/ui-patterns";
 import { motion } from "framer-motion";
 
 const SEMESTERS = ["1st Semester", "2nd Semester", "Summer"];
 
 export default function Results() {
+  const { user } = useAuthContext();
   const { data: availableYears, isLoading: yearsLoading } = useAcademicYearsQuery();
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [selectedSemester, setSelectedSemester] = useState<string>("all");
@@ -35,12 +37,17 @@ export default function Results() {
       : selectedSemester !== "all"
       ? `${selectedSemester} (All Years)`
       : "All Periods";
+  const isLimitedUser = user?.role !== "admin";
 
   return (
     <div className="space-y-6">
       <SectionHeader
-        title="Evaluation Results"
-        description="Ranked faculty performance across the institution"
+        title={isLimitedUser ? "Evaluation Stats" : "Evaluation Results"}
+        description={
+          isLimitedUser
+            ? "Track faculty performance using submitted evaluation data"
+            : "Ranked faculty performance across the institution"
+        }
       />
 
       {/* Filters */}

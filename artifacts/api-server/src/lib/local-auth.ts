@@ -176,6 +176,33 @@ export function registerLocalAccount(input: {
   return { user: toAuthUser(user) };
 }
 
+export function listManagedLocalAccounts(): AuthUser[] {
+  return Array.from(localUsers.values())
+    .filter((user) => user.id !== LOCAL_ADMIN_USER.id)
+    .map(toAuthUser)
+    .sort((left, right) => {
+      const leftName = `${left.firstName ?? ""} ${left.lastName ?? ""}`.trim() || left.email || left.id;
+      const rightName = `${right.firstName ?? ""} ${right.lastName ?? ""}`.trim() || right.email || right.id;
+      return leftName.localeCompare(rightName);
+    });
+}
+
+export function deleteLocalAccount(userId: string): boolean {
+  if (userId === LOCAL_ADMIN_USER.id || !localUsers.has(userId)) {
+    return false;
+  }
+
+  localUsers.delete(userId);
+
+  for (const [sessionToken, sessionUserId] of localSessions.entries()) {
+    if (sessionUserId === userId) {
+      localSessions.delete(sessionToken);
+    }
+  }
+
+  return true;
+}
+
 export function loginLocalAccount(input: {
   email: string;
   password: string;
