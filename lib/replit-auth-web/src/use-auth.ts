@@ -4,21 +4,24 @@ import type { AuthUser } from "@workspace/api-client-react";
 export type { AuthUser };
 
 type AuthMode = "local" | "oidc";
+type LocalRegistrationRole = "student" | "peer";
 
 interface AuthModeResponse {
   mode: AuthMode;
-  allowStudentRegistration: boolean;
+  allowLocalRegistration: boolean;
+  selfServiceRoles: LocalRegistrationRole[];
 }
 
 interface AuthUserResponse {
   user: AuthUser | null;
 }
 
-interface StudentRegistrationInput {
+interface LocalRegistrationInput {
   email: string;
   password: string;
   firstName: string;
   lastName: string;
+  role: LocalRegistrationRole;
 }
 
 interface AuthState {
@@ -27,11 +30,12 @@ interface AuthState {
   isAuthenticated: boolean;
   authMode: AuthMode;
   isLocalAuth: boolean;
-  allowStudentRegistration: boolean;
+  allowLocalRegistration: boolean;
+  selfServiceRoles: LocalRegistrationRole[];
   login: () => void;
   logout: () => void;
   loginWithCredentials: (email: string, password: string) => Promise<void>;
-  registerStudent: (input: StudentRegistrationInput) => Promise<void>;
+  registerLocalAccount: (input: LocalRegistrationInput) => Promise<void>;
   refresh: () => Promise<void>;
 }
 
@@ -55,7 +59,11 @@ export function useAuth(): AuthState {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [authMode, setAuthMode] = useState<AuthMode>("oidc");
-  const [allowStudentRegistration, setAllowStudentRegistration] = useState(false);
+  const [allowLocalRegistration, setAllowLocalRegistration] = useState(false);
+  const [selfServiceRoles, setSelfServiceRoles] = useState<LocalRegistrationRole[]>([
+    "student",
+    "peer",
+  ]);
 
   const refresh = useCallback(async () => {
     setIsLoading(true);
@@ -66,11 +74,13 @@ export function useAuth(): AuthState {
         getJson<AuthUserResponse>("/api/auth/user"),
       ]);
       setAuthMode(modeData.mode);
-      setAllowStudentRegistration(modeData.allowStudentRegistration);
+      setAllowLocalRegistration(modeData.allowLocalRegistration);
+      setSelfServiceRoles(modeData.selfServiceRoles);
       setUser(userData.user ?? null);
     } catch {
       setAuthMode("oidc");
-      setAllowStudentRegistration(false);
+      setAllowLocalRegistration(false);
+      setSelfServiceRoles(["student", "peer"]);
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -101,15 +111,15 @@ export function useAuth(): AuthState {
       });
 
       setAuthMode("local");
-      setAllowStudentRegistration(true);
+      setAllowLocalRegistration(true);
       setUser(data.user);
     },
     [],
   );
 
-  const registerStudent = useCallback(
-    async (input: StudentRegistrationInput) => {
-      const data = await getJson<{ user: AuthUser }>("/api/auth/register-student", {
+  const registerLocalAccount = useCallback(
+    async (input: LocalRegistrationInput) => {
+      const data = await getJson<{ user: AuthUser }>("/api/auth/register-local", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -118,7 +128,7 @@ export function useAuth(): AuthState {
       });
 
       setAuthMode("local");
-      setAllowStudentRegistration(true);
+      setAllowLocalRegistration(true);
       setUser(data.user);
     },
     [],
@@ -130,11 +140,12 @@ export function useAuth(): AuthState {
     isAuthenticated: !!user,
     authMode,
     isLocalAuth: authMode === "local",
-    allowStudentRegistration,
+    allowLocalRegistration,
+    selfServiceRoles,
     login,
     logout,
     loginWithCredentials,
-    registerStudent,
+    registerLocalAccount,
     refresh,
   };
 }

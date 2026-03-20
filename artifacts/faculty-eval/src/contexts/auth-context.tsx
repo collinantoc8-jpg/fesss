@@ -8,15 +8,17 @@ interface AuthContextValue {
   isAdmin: boolean;
   authMode: "local" | "oidc";
   isLocalAuth: boolean;
-  allowStudentRegistration: boolean;
+  allowLocalRegistration: boolean;
+  selfServiceRoles: Array<"student" | "peer">;
   login: () => void;
   logout: () => void;
   loginWithCredentials: (email: string, password: string) => Promise<void>;
-  registerStudent: (input: {
+  registerLocalAccount: (input: {
     email: string;
     password: string;
     firstName: string;
     lastName: string;
+    role: "student" | "peer";
   }) => Promise<void>;
   refresh: () => Promise<void>;
 }

@@ -27,9 +27,10 @@ export function AppLayout({ children }: LayoutProps) {
     logout,
     isLoading,
     isLocalAuth,
-    allowStudentRegistration,
+    allowLocalRegistration,
+    selfServiceRoles,
     loginWithCredentials,
-    registerStudent,
+    registerLocalAccount,
   } = useAuthContext();
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
 
@@ -78,9 +79,14 @@ export function AppLayout({ children }: LayoutProps) {
             <div className="space-y-2">
               <div className="flex items-center gap-2 px-3 py-2">
                 <UserCircle size={18} className="shrink-0 text-white/80" />
-                <span className="text-sm text-white/80 truncate">
-                  {user?.firstName ?? user?.email ?? "User"}
-                </span>
+                <div className="min-w-0">
+                  <span className="block text-sm text-white/80 truncate">
+                    {user?.firstName ?? user?.email ?? "User"}
+                  </span>
+                  <span className="block text-[11px] uppercase tracking-[0.16em] text-white/55">
+                    {user?.role ?? "member"}
+                  </span>
+                </div>
               </div>
               <button
                 onClick={logout}
@@ -150,9 +156,10 @@ export function AppLayout({ children }: LayoutProps) {
       <AuthDialog
         open={isAuthDialogOpen}
         onOpenChange={setIsAuthDialogOpen}
-        allowStudentRegistration={allowStudentRegistration}
-        onStudentLogin={loginWithCredentials}
-        onStudentRegister={registerStudent}
+        allowLocalRegistration={allowLocalRegistration}
+        selfServiceRoles={selfServiceRoles}
+        onLocalLogin={loginWithCredentials}
+        onLocalRegister={registerLocalAccount}
         onAdminAccess={login}
       />
     </div>

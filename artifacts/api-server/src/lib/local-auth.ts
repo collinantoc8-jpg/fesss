@@ -4,6 +4,9 @@ import type { AuthUser } from "@workspace/api-zod";
 
 export const isLocalAuthMode = !process.env.DATABASE_URL;
 export const LOCAL_AUTH_COOKIE = "local_dev_auth";
+export const LOCAL_SELF_SERVICE_ROLES = ["student", "peer"] as const;
+
+type LocalSelfServiceRole = (typeof LOCAL_SELF_SERVICE_ROLES)[number];
 
 type StoredLocalUser = AuthUser & {
   passwordHash: string | null;
@@ -30,6 +33,10 @@ function verifyPassword(password: string, passwordHash: string): boolean {
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
+}
+
+function isLocalSelfServiceRole(role: string): role is LocalSelfServiceRole {
+  return (LOCAL_SELF_SERVICE_ROLES as readonly string[]).includes(role);
 }
 
 function createStoredUser(
@@ -127,19 +134,25 @@ export function getLocalSessionTokenFromRequest(req: Request): string | null {
   return getLocalSessionToken(req);
 }
 
-export function registerLocalStudentAccount(input: {
+export function registerLocalAccount(input: {
   email: string;
   password: string;
   firstName: string;
   lastName: string;
+  role: string;
 }): { user: AuthUser } | { error: string } {
   const email = normalizeEmail(input.email);
   const firstName = input.firstName.trim();
   const lastName = input.lastName.trim();
   const password = input.password;
+  const role = input.role.trim().toLowerCase();
 
   if (!email || !firstName || !lastName || password.length < 6) {
     return { error: "Please provide a valid name, email, and password." };
+  }
+
+  if (!isLocalSelfServiceRole(role)) {
+    return { error: "Please choose a valid account role." };
   }
 
   if (findUserByEmail(email)) {
@@ -154,7 +167,7 @@ export function registerLocalStudentAccount(input: {
       firstName,
       lastName,
       profileImageUrl: null,
-      role: "student",
+      role,
     },
     hashPassword(password),
   );

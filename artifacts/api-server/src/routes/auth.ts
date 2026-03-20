@@ -11,10 +11,11 @@ import {
   getLocalSessionTokenFromRequest,
   getLocalUserFromRequest,
   isLocalAuthMode,
+  LOCAL_SELF_SERVICE_ROLES,
   LOCAL_ADMIN_USER,
   LOCAL_AUTH_COOKIE,
   loginLocalAccount,
-  registerLocalStudentAccount,
+  registerLocalAccount,
 } from "../lib/local-auth";
 
 const OIDC_COOKIE_TTL = 10 * 60 * 1000;
@@ -130,21 +131,23 @@ router.get("/auth/user", (req: Request, res: Response) => {
 router.get("/auth/mode", (_req: Request, res: Response) => {
   res.json({
     mode: isLocalAuthMode ? "local" : "oidc",
-    allowStudentRegistration: isLocalAuthMode,
+    allowLocalRegistration: isLocalAuthMode,
+    selfServiceRoles: LOCAL_SELF_SERVICE_ROLES,
   });
 });
 
-router.post("/auth/register-student", (req: Request, res: Response) => {
+router.post("/auth/register-local", (req: Request, res: Response) => {
   if (!isLocalAuthMode) {
-    res.status(404).json({ error: "Student registration is unavailable." });
+    res.status(404).json({ error: "Local account registration is unavailable." });
     return;
   }
 
-  const result = registerLocalStudentAccount({
+  const result = registerLocalAccount({
     email: getBodyString(req.body?.email),
     password: getBodyString(req.body?.password),
     firstName: getBodyString(req.body?.firstName),
     lastName: getBodyString(req.body?.lastName),
+    role: getBodyString(req.body?.role),
   });
 
   if ("error" in result) {

@@ -1,5 +1,5 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { AlertCircle, Shield } from "lucide-react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { AlertCircle, Shield, UserRound, Users } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -13,17 +13,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { cn } from "@/lib/utils";
+
+type SelfServiceRole = "student" | "peer";
 
 interface AuthDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  allowStudentRegistration: boolean;
-  onStudentLogin: (email: string, password: string) => Promise<void>;
-  onStudentRegister: (input: {
+  allowLocalRegistration: boolean;
+  selfServiceRoles: SelfServiceRole[];
+  onLocalLogin: (email: string, password: string) => Promise<void>;
+  onLocalRegister: (input: {
     email: string;
     password: string;
     firstName: string;
     lastName: string;
+    role: SelfServiceRole;
   }) => Promise<void>;
   onAdminAccess: () => void;
 }
@@ -33,9 +38,10 @@ type AuthTab = "sign-in" | "create-account";
 export function AuthDialog({
   open,
   onOpenChange,
-  allowStudentRegistration,
-  onStudentLogin,
-  onStudentRegister,
+  allowLocalRegistration,
+  selfServiceRoles,
+  onLocalLogin,
+  onLocalRegister,
   onAdminAccess,
 }: AuthDialogProps) {
   const [activeTab, setActiveTab] = useState<AuthTab>("sign-in");
@@ -47,6 +53,7 @@ export function AuthDialog({
   const [registerLastName, setRegisterLastName] = useState("");
   const [registerEmail, setRegisterEmail] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
+  const [registerRole, setRegisterRole] = useState<SelfServiceRole>("student");
 
   useEffect(() => {
     if (!open) {
@@ -59,13 +66,19 @@ export function AuthDialog({
     setError(null);
   }, [activeTab]);
 
+  useEffect(() => {
+    if (!selfServiceRoles.includes(registerRole)) {
+      setRegisterRole(selfServiceRoles[0] ?? "student");
+    }
+  }, [registerRole, selfServiceRoles]);
+
   async function handleLoginSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSubmitting(true);
     setError(null);
 
     try {
-      await onStudentLogin(loginEmail, loginPassword);
+      await onLocalLogin(loginEmail, loginPassword);
       onOpenChange(false);
     } catch (submitError) {
       setError(
@@ -84,11 +97,12 @@ export function AuthDialog({
     setError(null);
 
     try {
-      await onStudentRegister({
+      await onLocalRegister({
         firstName: registerFirstName,
         lastName: registerLastName,
         email: registerEmail,
         password: registerPassword,
+        role: registerRole,
       });
       onOpenChange(false);
     } catch (submitError) {
@@ -108,10 +122,31 @@ export function AuthDialog({
         <DialogHeader>
           <DialogTitle>Sign in to continue</DialogTitle>
           <DialogDescription>
-            Student accounts are available in local mode for evaluation access.
-            These local accounts reset when the app restarts.
+            Choose the role you want to use. Student and peer accounts can be
+            created here, while admin keeps a separate access path.
           </DialogDescription>
         </DialogHeader>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <RoleCard
+            icon={<UserRound className="h-5 w-5" />}
+            title="Student"
+            description="Standard evaluation account"
+            accent="border-primary/30 bg-primary/5 text-primary"
+          />
+          <RoleCard
+            icon={<Users className="h-5 w-5" />}
+            title="Peer"
+            description="Colleague reviewer account"
+            accent="border-accent/40 bg-accent/10 text-accent-foreground"
+          />
+          <RoleCard
+            icon={<Shield className="h-5 w-5" />}
+            title="Admin"
+            description="Use the admin access button"
+            accent="border-amber-500/30 bg-amber-500/10 text-amber-700"
+          />
+        </div>
 
         {error ? (
           <Alert variant="destructive">
@@ -125,31 +160,35 @@ export function AuthDialog({
           onValueChange={(value) => setActiveTab(value as AuthTab)}
           className="space-y-4"
         >
-          <TabsList className={`grid w-full ${allowStudentRegistration ? "grid-cols-2" : "grid-cols-1"}`}>
-            <TabsTrigger value="sign-in">Student Sign In</TabsTrigger>
-            {allowStudentRegistration ? (
+          <TabsList className={`grid w-full ${allowLocalRegistration ? "grid-cols-2" : "grid-cols-1"}`}>
+            <TabsTrigger value="sign-in">Sign In</TabsTrigger>
+            {allowLocalRegistration ? (
               <TabsTrigger value="create-account">Create Account</TabsTrigger>
             ) : null}
           </TabsList>
 
           <TabsContent value="sign-in">
             <form className="space-y-4" onSubmit={handleLoginSubmit}>
+              <p className="text-sm text-muted-foreground">
+                Sign in with the role already attached to your account. Admin
+                access uses the separate button below.
+              </p>
               <div className="space-y-2">
-                <Label htmlFor="student-login-email">Email</Label>
+                <Label htmlFor="local-login-email">Email</Label>
                 <Input
-                  id="student-login-email"
+                  id="local-login-email"
                   type="email"
                   autoComplete="email"
-                  placeholder="student@example.com"
+                  placeholder="you@example.com"
                   value={loginEmail}
                   onChange={(event) => setLoginEmail(event.target.value)}
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="student-login-password">Password</Label>
+                <Label htmlFor="local-login-password">Password</Label>
                 <Input
-                  id="student-login-password"
+                  id="local-login-password"
                   type="password"
                   autoComplete="current-password"
                   placeholder="Enter your password"
@@ -164,14 +203,42 @@ export function AuthDialog({
             </form>
           </TabsContent>
 
-          {allowStudentRegistration ? (
+          {allowLocalRegistration ? (
             <TabsContent value="create-account">
               <form className="space-y-4" onSubmit={handleRegisterSubmit}>
+                <div className="space-y-2">
+                  <Label>Choose Role</Label>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {selfServiceRoles.map((role) => (
+                      <button
+                        key={role}
+                        type="button"
+                        onClick={() => setRegisterRole(role)}
+                        className={cn(
+                          "rounded-xl border px-4 py-3 text-left transition-colors",
+                          registerRole === role
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-primary/40",
+                        )}
+                      >
+                        <span className="block font-semibold">
+                          {formatRoleLabel(role)}
+                        </span>
+                        <span className="mt-1 block text-sm text-muted-foreground">
+                          {role === "student"
+                            ? "Submit evaluations as a student."
+                            : "Submit evaluations as a peer reviewer."}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="student-first-name">First Name</Label>
+                    <Label htmlFor="local-first-name">First Name</Label>
                     <Input
-                      id="student-first-name"
+                      id="local-first-name"
                       autoComplete="given-name"
                       placeholder="First name"
                       value={registerFirstName}
@@ -180,9 +247,9 @@ export function AuthDialog({
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="student-last-name">Last Name</Label>
+                    <Label htmlFor="local-last-name">Last Name</Label>
                     <Input
-                      id="student-last-name"
+                      id="local-last-name"
                       autoComplete="family-name"
                       placeholder="Last name"
                       value={registerLastName}
@@ -191,22 +258,24 @@ export function AuthDialog({
                     />
                   </div>
                 </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="student-register-email">Email</Label>
+                  <Label htmlFor="local-register-email">Email</Label>
                   <Input
-                    id="student-register-email"
+                    id="local-register-email"
                     type="email"
                     autoComplete="email"
-                    placeholder="student@example.com"
+                    placeholder="you@example.com"
                     value={registerEmail}
                     onChange={(event) => setRegisterEmail(event.target.value)}
                     required
                   />
                 </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="student-register-password">Password</Label>
+                  <Label htmlFor="local-register-password">Password</Label>
                   <Input
-                    id="student-register-password"
+                    id="local-register-password"
                     type="password"
                     autoComplete="new-password"
                     placeholder="At least 6 characters"
@@ -215,8 +284,11 @@ export function AuthDialog({
                     required
                   />
                 </div>
+
                 <Button className="w-full" type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? "Creating account..." : "Create Student Account"}
+                  {isSubmitting
+                    ? "Creating account..."
+                    : `Create ${formatRoleLabel(registerRole)} Account`}
                 </Button>
               </form>
             </TabsContent>
@@ -237,4 +309,28 @@ export function AuthDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+function RoleCard({
+  icon,
+  title,
+  description,
+  accent,
+}: {
+  icon: ReactNode;
+  title: string;
+  description: string;
+  accent: string;
+}) {
+  return (
+    <div className={cn("rounded-2xl border p-4", accent)}>
+      <div className="mb-3 inline-flex rounded-xl bg-white/50 p-2">{icon}</div>
+      <h4 className="font-semibold">{title}</h4>
+      <p className="mt-1 text-sm opacity-80">{description}</p>
+    </div>
+  );
+}
+
+function formatRoleLabel(role: SelfServiceRole): string {
+  return role === "student" ? "Student" : "Peer";
 }
