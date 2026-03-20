@@ -24,7 +24,7 @@ export default function Evaluate() {
   const [facultyId, setFacultyId] = useState<string>(initialFacultyId || "");
   const [evaluatorName, setEvaluatorName] = useState("");
   const [evaluatorRole, setEvaluatorRole] = useState<Role>("student");
-  const [semester, setSemester] = useState("Fall");
+  const [semester, setSemester] = useState("1st Semester");
   const [academicYear, setAcademicYear] = useState(new Date().getFullYear().toString());
   
   // Criteria scores mapping: criterionId -> score
@@ -152,8 +152,8 @@ export default function Evaluate() {
                       onChange={e => setSemester(e.target.value)}
                       className="w-full px-4 py-3 rounded-xl border border-border bg-background focus:ring-2 focus:ring-primary/20"
                     >
-                      <option value="Fall">Fall</option>
-                      <option value="Spring">Spring</option>
+                      <option value="1st Semester">1st Semester</option>
+                      <option value="2nd Semester">2nd Semester</option>
                       <option value="Summer">Summer</option>
                     </select>
                   </div>

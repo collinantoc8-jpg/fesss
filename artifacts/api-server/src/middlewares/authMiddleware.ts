@@ -1,0 +1,106 @@
+import * as oidc from "openid-client";
+import { type Request, type Response, type NextFunction } from "express";
+import type { AuthUser } from "@workspace/api-zod";
+import {
+  getLocalDevUserFromRequest,
+  isLocalAuthMode,
+} from "../lib/local-auth";
+
+declare global {
+  namespace Express {
+    interface User extends AuthUser {}
+
+    interface Request {
+      isAuthenticated(): this is AuthedRequest;
+
+      user?: User | undefined;
+    }
+
+    export interface AuthedRequest {
+      user: User;
+    }
+  }
+}
+
+async function refreshIfExpired(
+  sid: string,
+  session: {
+    access_token: string;
+    refresh_token?: string;
+    expires_at?: number;
+    user: AuthUser;
+  },
+): Promise<typeof session | null> {
+  const now = Math.floor(Date.now() / 1000);
+  if (!session.expires_at || now <= session.expires_at) return session;
+
+  if (!session.refresh_token) return null;
+
+  try {
+    const { getOidcConfig, updateSession } = await import("../lib/auth");
+    const config = await getOidcConfig();
+    const tokens = await oidc.refreshTokenGrant(
+      config,
+      session.refresh_token,
+    );
+
+    session.access_token = tokens.access_token;
+    session.refresh_token = tokens.refresh_token ?? session.refresh_token;
+    session.expires_at = tokens.expiresIn()
+      ? now + tokens.expiresIn()!
+      : session.expires_at;
+    await updateSession(sid, session);
+
+    return session;
+  } catch {
+    return null;
+  }
+}
+
+export async function authMiddleware(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  req.isAuthenticated = function (this: Request) {
+    return this.user != null;
+  } as Request["isAuthenticated"];
+
+  if (isLocalAuthMode) {
+    const user = getLocalDevUserFromRequest(req);
+
+    if (user) {
+      req.user = user;
+    }
+
+    next();
+    return;
+  }
+
+  const { clearSession, getSession, getSessionId } = await import("../lib/auth");
+  const sid = getSessionId(req);
+
+  if (!sid) {
+    next();
+    return;
+  }
+
+  const session = await getSession(sid);
+
+  if (!session?.user?.id) {
+    await clearSession(res, sid);
+    next();
+    return;
+  }
+
+  const refreshed = await refreshIfExpired(sid, session);
+
+  if (!refreshed) {
+    await clearSession(res, sid);
+    next();
+    return;
+  }
+
+  req.user = refreshed.user;
+  next();
+}

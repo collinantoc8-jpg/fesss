@@ -6,14 +6,20 @@ import {
   Users, 
   ClipboardList, 
   BarChart3, 
-  Settings 
+  Settings,
+  LogIn,
+  LogOut,
+  UserCircle,
 } from "lucide-react";
+import { useAuthContext } from "@/contexts/auth-context";
 
 interface LayoutProps {
   children: ReactNode;
 }
 
 export function AppLayout({ children }: LayoutProps) {
+  const { user, isAuthenticated, isAdmin, login, logout, isLoading } = useAuthContext();
+
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row pb-20 md:pb-0">
       {/* Desktop Sidebar */}
@@ -30,17 +36,63 @@ export function AppLayout({ children }: LayoutProps) {
           <NavItem href="/results" icon={<BarChart3 size={20} />} label="Results" />
         </nav>
         
-        <div className="p-4">
-          <NavItem href="/admin" icon={<Settings size={20} />} label="Administration" />
+        <div className="px-4 pb-2 space-y-2">
+          {isAdmin && (
+            <NavItem href="/admin" icon={<Settings size={20} />} label="Administration" />
+          )}
+        </div>
+
+        {/* Auth section */}
+        <div className="p-4 border-t border-white/20">
+          {isLoading ? (
+            <div className="h-10 rounded-xl bg-white/10 animate-pulse" />
+          ) : isAuthenticated ? (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 px-3 py-2">
+                <UserCircle size={18} className="shrink-0 text-white/80" />
+                <span className="text-sm text-white/80 truncate">
+                  {user?.firstName ?? user?.email ?? "User"}
+                </span>
+              </div>
+              <button
+                onClick={logout}
+                className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white transition-all text-sm"
+              >
+                <LogOut size={18} />
+                Log out
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={login}
+              className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-white/70 hover:bg-white/10 hover:text-white transition-all text-sm"
+            >
+              <LogIn size={18} />
+              Log in
+            </button>
+          )}
         </div>
       </aside>
 
       {/* Mobile Top Bar */}
-      <header className="md:hidden bg-primary text-white p-4 flex items-center justify-center shadow-md sticky top-0 z-40">
+      <header className="md:hidden bg-primary text-white p-4 flex items-center justify-between shadow-md sticky top-0 z-40">
         <div className="flex items-center gap-3">
           <img src={`${import.meta.env.BASE_URL}images/logo.png`} alt="Logo" className="w-8 h-8 object-contain invert brightness-0" />
           <h1 className="text-lg font-display font-bold">Faculty Evals</h1>
         </div>
+        {!isLoading && (
+          isAuthenticated ? (
+            <button onClick={logout} className="flex items-center gap-1.5 text-white/80 hover:text-white text-sm">
+              <LogOut size={16} />
+              <span className="hidden xs:inline">Log out</span>
+            </button>
+          ) : (
+            <button onClick={login} className="flex items-center gap-1.5 text-white/80 hover:text-white text-sm">
+              <LogIn size={16} />
+              <span>Log in</span>
+            </button>
+          )
+        )}
       </header>
 
       {/* Main Content */}
@@ -62,7 +114,9 @@ export function AppLayout({ children }: LayoutProps) {
         <MobileNavItem href="/faculty" icon={<Users size={22} />} label="Faculty" />
         <MobileNavItem href="/evaluate" icon={<ClipboardList size={22} />} label="Evaluate" />
         <MobileNavItem href="/results" icon={<BarChart3 size={22} />} label="Results" />
-        <MobileNavItem href="/admin" icon={<Settings size={22} />} label="Admin" />
+        {isAdmin && (
+          <MobileNavItem href="/admin" icon={<Settings size={22} />} label="Admin" />
+        )}
       </nav>
     </div>
   );

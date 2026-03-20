@@ -9,11 +9,7 @@ export function useResultsQuery(params?: { academicYear?: string; semester?: str
 }
 
 export function useFacultyResultDetailQuery(facultyId: number) {
-  return useGetFacultyResult(facultyId, {
-    query: {
-      enabled: !!facultyId,
-    },
-  });
+  return useGetFacultyResult(facultyId);
 }
 
 export function useAcademicYearsQuery() {

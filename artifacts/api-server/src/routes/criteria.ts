@@ -1,24 +1,25 @@
 import { Router, type IRouter } from "express";
-import { db, criteriaTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
 import { CreateCriterionBody } from "@workspace/api-zod";
+import {
+  createCriterion,
+  deleteCriterion,
+  listCriteria,
+} from "../lib/data-store";
 
 const router: IRouter = Router();
 
 router.get("/criteria", async (_req, res) => {
-  const criteria = await db.select().from(criteriaTable).orderBy(criteriaTable.category, criteriaTable.name);
-  res.json(criteria);
+  res.json(await listCriteria());
 });
 
 router.post("/criteria", async (req, res) => {
   const data = CreateCriterionBody.parse(req.body);
-  const [criterion] = await db.insert(criteriaTable).values(data).returning();
-  res.status(201).json(criterion);
+  res.status(201).json(await createCriterion(data));
 });
 
 router.delete("/criteria/:id", async (req, res) => {
-  const id = parseInt(req.params.id);
-  await db.delete(criteriaTable).where(eq(criteriaTable.id, id));
+  const id = Number.parseInt(req.params.id, 10);
+  await deleteCriterion(id);
   res.status(204).send();
 });
 

@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: faculty-eval-mobile
+    runtime: node
+    plan: free
+    healthCheckPath: /api/healthz
+    buildCommand: corepack pnpm install --frozen-lockfile && corepack pnpm run build
+    startCommand: node artifacts/api-server/dist/index.cjs
+    envVars:
+      - key: NODE_VERSION
+        value: 22.22.0
